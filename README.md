@@ -10,6 +10,18 @@
 
 ---
 
+## 🚀 Live Demo
+
+**Frontend:**
+https://animal-kingdom-frontend.onrender.com/
+
+**Backend API / Swagger:**
+https://animal-kingdom-backend-4zzh.onrender.com/docs
+
+> The frontend is connected to the FastAPI backend, which communicates with the Animal Kingdom Knowledge Graph stored in Neo4j Aura.
+
+---
+
 ## 1. Project Statement & Academic Purpose
 
 > **Academic Statement:**
