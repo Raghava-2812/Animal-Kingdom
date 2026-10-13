@@ -1,6 +1,26 @@
+/**
+ * Multi-Facet Graph Filter Panel Component.
+ *
+ * Provides responsive dropdown select controls allowing users to filter
+ * animals across five discrete knowledge graph dimensions:
+ * 1. Taxonomic Class (Mammal, Bird, Reptile, Amphibian, Fish, Insect)
+ * 2. Habitat Biome (Forest, Ocean, Savanna, Desert, etc.)
+ * 3. Dietary Category (Carnivore, Herbivore, Omnivore, Insectivore)
+ * 4. IUCN Conservation Status (Least Concern, Endangered, etc.)
+ * 5. Geographical Continent (Asia, Africa, Europe, Americas, etc.)
+ *
+ * Displays an active filter counter pill and a one-click "Reset All" button.
+ *
+ * Props:
+ * @param {Object} props.filters - Current filter values object { class, habitat, diet, status, continent }.
+ * @param {Function} props.onFilterChange - Callback invoked when a filter select changes: (key, value) => void.
+ * @param {Function} props.onReset - Callback invoked to clear all active filters back to initial state.
+ */
+
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
 
+// Static taxonomy and graph categorical options
 const FILTER_OPTIONS = {
   class: ['Mammal', 'Bird', 'Reptile', 'Amphibian', 'Fish', 'Insect'],
   habitat: ['Forest', 'Grassland', 'Savanna', 'Desert', 'Ocean', 'River', 'Wetland', 'Mountain', 'Polar Tundra'],
@@ -10,10 +30,12 @@ const FILTER_OPTIONS = {
 };
 
 export default function FilterPanel({ filters, onFilterChange, onReset }) {
+  // Compute how many filter dimensions currently have non-empty selections
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-xs">
+      {/* Header with Active Filters Count and Reset Action */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-emerald-600" />
@@ -35,8 +57,9 @@ export default function FilterPanel({ filters, onFilterChange, onReset }) {
         )}
       </div>
 
+      {/* Grid of Dropdown Select Controls */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {/* Class Filter */}
+        {/* 1. Taxonomic Class Filter */}
         <div>
           <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Taxonomic Class
@@ -53,7 +76,7 @@ export default function FilterPanel({ filters, onFilterChange, onReset }) {
           </select>
         </div>
 
-        {/* Habitat Filter */}
+        {/* 2. Habitat Biome Filter */}
         <div>
           <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Habitat
@@ -70,7 +93,7 @@ export default function FilterPanel({ filters, onFilterChange, onReset }) {
           </select>
         </div>
 
-        {/* Diet Filter */}
+        {/* 3. Dietary Category Filter */}
         <div>
           <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Dietary Category
@@ -87,7 +110,7 @@ export default function FilterPanel({ filters, onFilterChange, onReset }) {
           </select>
         </div>
 
-        {/* Conservation Status Filter */}
+        {/* 4. IUCN Conservation Status Filter */}
         <div>
           <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Conservation Status
@@ -104,7 +127,7 @@ export default function FilterPanel({ filters, onFilterChange, onReset }) {
           </select>
         </div>
 
-        {/* Continent Filter */}
+        {/* 5. Continent / Geographical Region Filter */}
         <div>
           <label className="block text-2xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             Continent / Region

@@ -1,11 +1,29 @@
+/**
+ * Natural Language Query Result View Component.
+ *
+ * Displays the decomposed response from the backend Natural Language Cypher engine:
+ * 1. Summary Header: Active question, matching animal count, and extracted entity pills
+ *    (e.g., status: Endangered, habitat: Forest).
+ * 2. Academic Explanation Banner: Contextual narrative explaining the applied graph constraints.
+ * 3. Generated Cypher Terminal: Syntax-highlighted code block with Copy to Clipboard and Collapse/Expand.
+ * 4. Animal Grid: Responsive grid of AnimalCard components representing matched entities.
+ *
+ * Props:
+ * @param {Object} props.response - The NaturalLanguageQueryResponse object from the API.
+ * @param {boolean} props.loading - Active loading state flag.
+ * @param {Function} [props.onExploreGraph] - Callback invoked when clicking an animal's graph icon.
+ */
+
 import React, { useState } from 'react';
 import { Terminal, Copy, Check, Filter, Layers, Info } from 'lucide-react';
 import AnimalCard from './AnimalCard';
 
 export default function QueryResult({ response, loading, onExploreGraph }) {
+  // State for copy feedback and code block collapse toggle
   const [copied, setCopied] = useState(false);
   const [showCypher, setShowCypher] = useState(true);
 
+  // Loading State Display
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-xs">
@@ -20,6 +38,9 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
 
   const { question, detectedFilters = {}, cypherQuery, results = [], resultCount = 0, explanation } = response;
 
+  /**
+   * Copies the generated Cypher query to the user's system clipboard.
+   */
   const handleCopyCypher = () => {
     navigator.clipboard.writeText(cypherQuery);
     setCopied(true);
@@ -28,7 +49,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
 
   return (
     <div className="space-y-6">
-      {/* Query Breakdown Header */}
+      {/* 1. Query Breakdown & Filter Summary Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div>
@@ -44,7 +65,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
           </div>
         </div>
 
-        {/* Interpreted Constraints & Explanation */}
+        {/* Interpreted Constraints */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <div className="flex items-center text-xs font-semibold text-slate-500 mr-2">
             <Filter className="w-3.5 h-3.5 mr-1 text-emerald-600" />
@@ -65,6 +86,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
           )}
         </div>
 
+        {/* Human-Readable Explanation Banner */}
         {explanation && (
           <div className="mt-3 flex items-start space-x-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
             <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -73,7 +95,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
         )}
       </div>
 
-      {/* Generated Cypher Section */}
+      {/* 2. Generated Cypher Terminal View */}
       <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-md">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
           <div className="flex items-center space-x-2">
@@ -86,6 +108,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
             </span>
           </div>
           <div className="flex items-center space-x-2">
+            {/* Copy Button */}
             <button
               onClick={handleCopyCypher}
               className="flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
@@ -94,6 +117,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
+            {/* Collapse/Expand Toggle */}
             <button
               onClick={() => setShowCypher(!showCypher)}
               className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1"
@@ -103,6 +127,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
           </div>
         </div>
 
+        {/* Code Display Area */}
         {showCypher && (
           <div className="p-4 overflow-x-auto">
             <pre className="text-xs font-mono text-emerald-300 leading-relaxed">
@@ -112,7 +137,7 @@ export default function QueryResult({ response, loading, onExploreGraph }) {
         )}
       </div>
 
-      {/* Result Cards Grid */}
+      {/* 3. Result Entity Cards Grid */}
       <div>
         <div className="flex items-center space-x-2 mb-4">
           <Layers className="w-4 h-4 text-emerald-600" />

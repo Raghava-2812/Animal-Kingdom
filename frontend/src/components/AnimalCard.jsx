@@ -1,7 +1,23 @@
+/**
+ * Animal Card Presentation Component.
+ *
+ * Renders an individual animal card in grid and list views:
+ * - High-resolution photograph with multi-tier error fallback (Animal URL -> Class Fallback).
+ * - Badges for Taxonomic Class, Dietary Classification, and IUCN Conservation Status.
+ * - Lifespan in years, scientific name, and ecological description summary.
+ * - Tags for native habitat biomes and geographical continents.
+ * - Action buttons: "View Details" (navigates to animal profile) and "Explore Graph" (opens graph tab).
+ *
+ * Props:
+ * @param {Object} props.animal - The AnimalSummary entity object.
+ * @param {Function} [props.onExploreGraph] - Optional callback to launch graph viewer in modal or drawer.
+ */
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Share2, MapPin, Sparkles, ShieldAlert, HeartHandshake, Image as ImageIcon } from 'lucide-react';
 
+// Color themes corresponding to IUCN Red List conservation categories
 const STATUS_COLORS = {
   'Least Concern': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'Near Threatened': 'bg-lime-50 text-lime-700 border-lime-200',
@@ -10,6 +26,7 @@ const STATUS_COLORS = {
   'Critically Endangered': 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
+// Color themes corresponding to Taxonomic Classes
 const CLASS_COLORS = {
   Mammal: 'bg-blue-50 text-blue-700 border-blue-200',
   Bird: 'bg-sky-50 text-sky-700 border-sky-200',
@@ -19,6 +36,7 @@ const CLASS_COLORS = {
   Insect: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
+// Verified CDN fallback images organized by Taxonomic Class
 const CLASS_FALLBACKS = {
   Mammal: "https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80",
   Bird: "https://images.unsplash.com/photo-1611689342806-0863700ce1e4?auto=format&fit=crop&w=800&q=80",
@@ -30,12 +48,17 @@ const CLASS_FALLBACKS = {
 
 export default function AnimalCard({ animal, onExploreGraph }) {
   const navigate = useNavigate();
+
+  // State to track image fallback progression (0: original -> 1: fallback -> 2: class default)
   const [imgErrorStep, setImgErrorStep] = useState(0);
 
   const statusBadge = STATUS_COLORS[animal.conservationStatus] || 'bg-slate-50 text-slate-700 border-slate-200';
   const classBadge = CLASS_COLORS[animal.className] || 'bg-slate-50 text-slate-700 border-slate-200';
 
-  // Multi-tier redundant image selection
+  /**
+   * Multi-tier redundant image selection:
+   * Gracefully falls back from entity-specific URL to class-level CDN photo.
+   */
   const getImageSource = () => {
     if (imgErrorStep === 0 && animal.imageUrl) {
       return animal.imageUrl;
@@ -46,6 +69,9 @@ export default function AnimalCard({ animal, onExploreGraph }) {
     return CLASS_FALLBACKS[animal.className] || CLASS_FALLBACKS.Mammal;
   };
 
+  /**
+   * Image load error handler: steps to the next redundant fallback level.
+   */
   const handleImageError = () => {
     if (imgErrorStep < 2) {
       setImgErrorStep((prev) => prev + 1);
@@ -54,7 +80,7 @@ export default function AnimalCard({ animal, onExploreGraph }) {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col group hover:border-emerald-300">
-      {/* Image & Quick Badges */}
+      {/* Photo Banner & Quick Badges */}
       <div className="relative h-48 bg-slate-900 overflow-hidden">
         <img
           src={getImageSource()}
@@ -64,6 +90,7 @@ export default function AnimalCard({ animal, onExploreGraph }) {
           loading="lazy"
           referrerPolicy="no-referrer"
         />
+        {/* Top-Left Category Badges */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
           {animal.className && (
             <span className={`px-2 py-0.5 rounded-md text-xs font-semibold border backdrop-blur-xs ${classBadge}`}>
@@ -76,6 +103,7 @@ export default function AnimalCard({ animal, onExploreGraph }) {
             </span>
           )}
         </div>
+        {/* Top-Right IUCN Status Badge */}
         {animal.conservationStatus && (
           <div className="absolute top-2.5 right-2.5">
             <span className={`px-2 py-0.5 rounded-md text-xs font-semibold border backdrop-blur-xs ${statusBadge}`}>
@@ -85,9 +113,10 @@ export default function AnimalCard({ animal, onExploreGraph }) {
         )}
       </div>
 
-      {/* Body Info */}
+      {/* Card Body Information */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
+          {/* Common Name & Average Lifespan */}
           <div className="flex items-baseline justify-between mb-1">
             <h3 className="font-bold text-lg text-slate-900 group-hover:text-emerald-700 transition-colors">
               {animal.name}
@@ -98,16 +127,18 @@ export default function AnimalCard({ animal, onExploreGraph }) {
               </span>
             )}
           </div>
+          {/* Scientific Binomial */}
           <p className="text-xs italic text-slate-500 mb-2">
             {animal.scientificName || 'Taxonomic classification'}
           </p>
+          {/* Ecological Description Snippet */}
           {animal.description && (
             <p className="text-xs text-slate-600 line-clamp-2 mb-3 leading-relaxed">
               {animal.description}
             </p>
           )}
 
-          {/* Habitats & Continents */}
+          {/* Habitat and Continent Tags */}
           <div className="flex flex-wrap gap-1 mb-4">
             {animal.habitats && animal.habitats.map((h) => (
               <span
@@ -133,7 +164,7 @@ export default function AnimalCard({ animal, onExploreGraph }) {
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Card Action Buttons */}
         <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
           <Link
             to={`/animals/${animal.id}`}

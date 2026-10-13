@@ -1,3 +1,15 @@
+/**
+ * Homepage Dashboard View Component.
+ *
+ * Serves as the landing hub of the application:
+ * 1. Hero Banner: Introduces the Knowledge Graph concept, Cypher query engine, and quick call-to-actions.
+ * 2. KPI Metrics Section: Six interactive StatCards (Animals, Species, Habitats, Food Sources,
+ *    Endangered, Continents) fed live from the backend `/api/dashboard/stats` endpoint.
+ * 3. Quick Exploration Category Cards: Navigation portals filtering fauna by Biome, Diet, IUCN Status, or Continent.
+ * 4. Live Graph Topology Showcase: Embedded interactive SVG GraphViewer showing the Tiger's ego-network.
+ * 5. Academic Concept Card: Demonstrates the `ENTITY → RELATIONSHIP → ENTITY` graph modeling paradigm.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -19,11 +31,17 @@ import GraphViewer from '../components/GraphViewer';
 
 export default function Home() {
   const navigate = useNavigate();
+
+  // State holding dashboard statistics and sample graph payload
   const [stats, setStats] = useState(null);
   const [sampleGraph, setSampleGraph] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  /**
+   * Fetches aggregate statistics and sample graph on component mount.
+   * Includes graceful error fallbacks so the page renders even if the database is initializing.
+   */
   useEffect(() => {
     Promise.all([
       api.getStats().catch((err) => {
@@ -52,6 +70,7 @@ export default function Home() {
     });
   }, []);
 
+  // Category navigation cards definitions
   const quickExploreCards = [
     {
       title: 'Animals',
@@ -92,7 +111,7 @@ export default function Home() {
 
   return (
     <div className="space-y-12 py-6">
-      {/* Hero Section */}
+      {/* 1. Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-emerald-900 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-emerald-800/40">
         <div className="relative z-10 max-w-3xl space-y-5">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 backdrop-blur-md">
@@ -129,13 +148,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Subtle Decorative Graph Watermark */}
+        {/* Decorative Background Graph Watermark */}
         <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none translate-x-12 translate-y-12 hidden md:block">
           <Network className="w-96 h-96 text-white" />
         </div>
       </section>
 
-      {/* Dynamic Graph Statistics */}
+      {/* 2. Dynamic Knowledge Graph Statistics */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -153,6 +172,7 @@ export default function Home() {
           )}
         </div>
 
+        {/* Responsive Grid of Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard
             label="Animals"
@@ -205,7 +225,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Quick Exploration Cards */}
+      {/* 3. Quick Exploration Category Cards */}
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -237,7 +257,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Interactive Graph Showcase Preview */}
+      {/* 4. Interactive Graph Showcase Preview */}
       {sampleGraph && (
         <section className="space-y-3 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -267,7 +287,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Academic Architecture Concept Note */}
+      {/* 5. Academic Architecture Concept Note */}
       <section className="bg-slate-100/80 rounded-2xl border border-slate-200 p-6 text-slate-700">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-2">
           Academic Knowledge Graph Design Principle

@@ -1,3 +1,20 @@
+"""
+Natural Language to Cypher Query Engine Service.
+
+Translates free-form English questions into mathematically sound, parameterized
+Cypher queries executed directly against the Neo4j Knowledge Graph.
+
+Core Functionality:
+1. Entity Extraction: Extracts entity mentions for Status, Habitat, Diet, Class,
+   Food/Prey, and Geographic Continent using regex dictionaries and synonyms.
+2. Context Disambiguation: Differentiates between 'eats fish' (Food entity filter)
+   vs. 'is a fish' (Taxonomic Class filter), and parses collective categories like
+   'water/aquatic' into biomes [Ocean, River, Wetland].
+3. Parameterized Cypher Compilation: Generates structured MATCH...WHERE...RETURN statements.
+4. Execution & Explanation: Executes the query via Neo4j Driver and returns
+   matched Animal entities along with human-readable traversal explanations.
+"""
+
 import re
 import logging
 from typing import Any, Dict, List, Tuple
@@ -15,7 +32,12 @@ from seed.animals_data import (
 
 logger = logging.getLogger(__name__)
 
-# Canonical keywords mapping
+# ============================================================================
+# Canonical Synonym & Keyword Dictionaries
+# Maps colloquial user phrases and plurals to canonical Knowledge Graph nodes
+# ============================================================================
+
+# Habitat canonical mapping (e.g., 'jungles' -> 'Forest', 'swamps' -> 'Wetland')
 HABITAT_KEYWORDS = {h["name"].lower(): h["name"] for h in HABITATS_DATA}
 HABITAT_KEYWORDS.update({
     "forests": "Forest",
@@ -60,6 +82,7 @@ HABITAT_KEYWORDS.update({
     "ice": "Polar Tundra",
 })
 
+# Dietary category canonical mapping (e.g., 'predator' -> 'Carnivore')
 DIET_KEYWORDS = {
     "carnivore": "Carnivore",
     "carnivores": "Carnivore",
@@ -88,6 +111,7 @@ DIET_KEYWORDS = {
     "insect eaters": "Insectivore",
 }
 
+# Taxonomic Class canonical mapping (e.g., 'avian' -> 'Bird')
 CLASS_KEYWORDS = {
     "mammal": "Mammal",
     "mammals": "Mammal",
@@ -106,6 +130,7 @@ CLASS_KEYWORDS = {
     "bugs": "Insect",
 }
 
+# IUCN Conservation Status mapping
 STATUS_KEYWORDS = {
     "critically endangered": "Critically Endangered",
     "endangered": "Endangered",
@@ -114,6 +139,7 @@ STATUS_KEYWORDS = {
     "least concern": "Least Concern"
 }
 
+# Geographic Continent mapping
 CONTINENT_KEYWORDS = {c["name"].lower(): c["name"] for c in CONTINENTS_DATA}
 CONTINENT_KEYWORDS.update({
     "asia": "Asia",
@@ -125,6 +151,7 @@ CONTINENT_KEYWORDS.update({
     "antarctica": "Antarctica"
 })
 
+# Prey & Food source mapping (e.g., 'bamboo', 'krill', 'berries')
 FOOD_KEYWORDS = {
     "fish": "Fish",
     "fishes": "Fish",
@@ -153,25 +180,53 @@ FOOD_KEYWORDS = {
     "moths": "Moths",
 }
 
+
 class QueryService:
+    """
+    Service responsible for parsing natural-language questions and compiling Cypher queries.
+    """
+
     @staticmethod
     def parse_natural_language_question(question: str) -> Tuple[Dict[str, Any], str, Dict[str, Any]]:
         """
-        Parses a natural language question into detected graph entities and generates a Cypher query.
-        Returns: (detected_filters, cypher_query, parameters)
+        Parses a natural-language question into graph entity constraints and compiles a Cypher query.
+
+        Algorithm:
+        1. Normalizes input text to lowercase.
+        2. Scans for Conservation Status (matching 'critically endangered' before 'endangered').
+        3. Identifies habitat biomes, parsing collective keywords like 'water/aquatic' into [Ocean, River, Wetland].
+        4. Identifies dietary class, handling phrasings such as 'eat meat' -> Carnivore.
+        5. Detects taxonomic class, ensuring it is not the object of an 'eat/eating' action.
+        6. Extracts continents and specific food/prey items.
+        7. Dynamically synthesizes parameterized Cypher query with safe MATCH and WHERE clauses.
+
+        Args:
+            question (str): The natural language query submitted by the user.
+
+        Returns:
+            Tuple[Dict[str, Any], str, Dict[str, Any]]:
+                - detected_filters: Dict of identified constraint keys and values.
+                - cypher_query: Complete Cypher query string ready for execution.
+                - parameters: Parameter dictionary bound to the Cypher execution.
         """
         q = question.lower()
         filters: Dict[str, Any] = {}
         params: Dict[str, Any] = {}
 
-        # 1. Detect Conservation Status (check 'critically endangered' before 'endangered')
+        # ---------------------------------------------------------
+        # 1. Detect Conservation Status
+        # ---------------------------------------------------------
+        # Evaluates 'critically endangered' before 'endangered' to avoid prefix collisions
         for term, canonical in STATUS_KEYWORDS.items():
             if re.search(r'\b' + re.escape(term) + r'\b', q):
                 filters["status"] = canonical
                 params["status_name"] = canonical
                 break
 
-        # 2. Detect Habitat (Handle water/aquatic categories & land categories)
+        # ---------------------------------------------------------
+        # 2. Detect Habitat Biomes
+        # ---------------------------------------------------------
+        # Disambiguates collective terms 'water/aquatic' and 'land/terrestrial'
         is_water_query = bool(re.search(r'\b(water|aquatic)\b', q))
         is_land_query = bool(re.search(r'\b(land|terrestrial)\b', q))
 
@@ -191,17 +246,20 @@ class QueryService:
                 filters["habitat"] = detected_habitats[0]
                 params["habitat_name"] = detected_habitats[0]
             elif len(detected_habitats) > 1:
+                # Intersecting habitats (e.g. 'both forests and grasslands')
                 filters["habitats"] = detected_habitats
                 params["habitat_names"] = detected_habitats
 
+        # ---------------------------------------------------------
         # 3. Detect Diet
+        # ---------------------------------------------------------
         for term, canonical in DIET_KEYWORDS.items():
             if re.search(r'\b' + re.escape(term) + r'\b', q):
                 filters["diet"] = canonical
                 params["diet_name"] = canonical
                 break
 
-        # Special phrasing for food/diet: "eat meat" -> Carnivore, "eat plants" -> Herbivore
+        # Special natural language phrasings: "eat meat" -> Carnivore, "eat plants" -> Herbivore
         if re.search(r'\b(?:eat|eats|eating)\s+(?:meat|flesh|animals)\b', q):
             filters["diet"] = "Carnivore"
             params["diet_name"] = "Carnivore"
@@ -209,30 +267,39 @@ class QueryService:
             filters["diet"] = "Herbivore"
             params["diet_name"] = "Herbivore"
 
-        # 4. Detect Class (ensure it's not the target of 'eat/eats/eating')
+        # ---------------------------------------------------------
+        # 4. Detect Taxonomic Class
+        # ---------------------------------------------------------
         for term, canonical in CLASS_KEYWORDS.items():
             if re.search(r'\b' + re.escape(term) + r'\b', q):
-                # If term is preceded by 'eat', 'eats', or 'eating', it's a food source, not a class filter
+                # Disambiguation: If preceded by 'eat/eats/eating' (e.g. 'eats fish'),
+                # this is a food item, NOT a class constraint!
                 if not re.search(r'\b(?:eat|eats|eating)\s+(?:a\s+|an\s+|the\s+)?' + re.escape(term) + r'\b', q):
                     filters["class"] = canonical
                     params["class_name"] = canonical
                     break
 
+        # ---------------------------------------------------------
         # 5. Detect Continent
+        # ---------------------------------------------------------
         for term, canonical in CONTINENT_KEYWORDS.items():
             if re.search(r'\b' + re.escape(term) + r'\b', q):
                 filters["continent"] = canonical
                 params["continent_name"] = canonical
                 break
 
-        # 6. Detect Food item
+        # ---------------------------------------------------------
+        # 6. Detect Food / Prey Source
+        # ---------------------------------------------------------
         for term, canonical in FOOD_KEYWORDS.items():
             if re.search(r'\b' + re.escape(term) + r'\b', q):
                 filters["food"] = canonical
                 params["food_name"] = canonical
                 break
 
-        # Construct safe Cypher query based on detected entities
+        # ---------------------------------------------------------
+        # 7. Synthesize Parameterized Cypher Query
+        # ---------------------------------------------------------
         match_clauses = ["(a:Animal)"]
         where_conditions = []
 
@@ -250,7 +317,7 @@ class QueryService:
             match_clauses.append("(a)-[:LIVES_IN]->(h:Habitat)")
             where_conditions.append("h.name = $habitat_name")
         elif "habitats" in filters:
-            # Multi-habitat intersection (e.g. lives in both forests and grasslands)
+            # Multi-habitat conjunction (e.g. lives in both forests and grasslands)
             for idx, hab in enumerate(filters["habitats"]):
                 match_clauses.append(f"(a)-[:LIVES_IN]->(h{idx}:Habitat)")
                 where_conditions.append(f"h{idx}.name = '{hab}'")
@@ -274,6 +341,7 @@ class QueryService:
         matches_str = ",\n     ".join(match_clauses)
         where_str = ("\nWHERE " + " AND ".join(where_conditions)) if where_conditions else ""
 
+        # Compose final Cypher query with optional contextual expansions
         cypher_query = f"""MATCH {matches_str}{where_str}
 OPTIONAL MATCH (a)-[:BELONGS_TO_SPECIES]->(sp:Species)-[:BELONGS_TO_CLASS]->(cl:Class)
 OPTIONAL MATCH (a)-[:HAS_STATUS]->(cstat:ConservationStatus)
@@ -297,10 +365,20 @@ ORDER BY a.name"""
 
     @classmethod
     def execute_natural_language_query(cls, question: str) -> NaturalLanguageQueryResponse:
-        """Process user question, construct Cypher query, execute, and return structured result."""
+        """
+        Executes a natural language query end-to-end:
+        Extracts entities -> Compiles Cypher -> Runs against Neo4j -> Formats response.
+
+        Args:
+            question (str): Plain-English question from user.
+
+        Returns:
+            NaturalLanguageQueryResponse: Payload with extracted filters, generated Cypher,
+                                          list of matched entities, and narrative explanation.
+        """
         filters, cypher, params = cls.parse_natural_language_question(question)
 
-        # Execute on Neo4j if available
+        # Execute against live Neo4j database if connected
         if neo4j_client.is_connected:
             try:
                 records = neo4j_client.execute_read(cypher, params)
@@ -317,7 +395,7 @@ ORDER BY a.name"""
             except Exception as e:
                 logger.error("Error executing NL Cypher query on Neo4j: %s", str(e))
 
-        # In-memory execution fallback
+        # Fallback: In-memory simulation over ANIMALS_DATA
         water_habitats = {"Ocean", "River", "Wetland"}
         land_habitats = {"Forest", "Grassland", "Savanna", "Desert", "Mountain"}
 
@@ -377,6 +455,7 @@ ORDER BY a.name"""
 
     @staticmethod
     def _generate_explanation(filters: Dict[str, Any], count: int) -> str:
+        """Constructs an academic explanation string describing the active graph traversal constraints."""
         if not filters:
             return f"Retrieved {count} animals matching general criteria."
         parts = []

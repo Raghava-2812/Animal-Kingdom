@@ -1,3 +1,14 @@
+/**
+ * Navigation Bar Component.
+ *
+ * Sits at the top of the viewport with a sticky position and backdrop blur:
+ * - Displays brand title and project description.
+ * - Highlights active route navigation links (Home, Explore Animals, Ask Knowledge Graph).
+ * - Queries the backend `/api/health` endpoint on mount to display a live status pill
+ *   showing whether the Neo4j database driver connection is currently active or using
+ *   the high-availability dataset fallback.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Network, Search, HelpCircle, Database, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -5,14 +16,18 @@ import { api } from '../services/api';
 
 export default function Navbar() {
   const location = useLocation();
+
+  // State tracking live backend/database connection status
   const [health, setHealth] = useState({ neo4jConnected: false, loading: true });
 
+  // Pings backend health check on initial component mount
   useEffect(() => {
     api.getHealth()
       .then((data) => setHealth({ neo4jConnected: data.neo4jConnected, loading: false }))
       .catch(() => setHealth({ neo4jConnected: false, loading: false }));
   }, []);
 
+  // Centralized navigation link definitions with matching Lucide icons
   const navLinks = [
     { to: '/', label: 'Home', icon: Network },
     { to: '/explore', label: 'Explore Animals', icon: Search },
@@ -38,7 +53,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1">
             {navLinks.map(({ to, label, icon: Icon }) => {
               const isActive = location.pathname === to;
@@ -59,7 +74,7 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Database Connectivity Badge */}
+          {/* Database Live Connectivity Status Indicator */}
           <div className="flex items-center space-x-2">
             <div
               className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${

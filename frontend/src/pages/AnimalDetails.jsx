@@ -1,3 +1,16 @@
+/**
+ * Animal Details and Graph Neighborhood View Component.
+ *
+ * Renders the full ecological and taxonomic profile for a single Animal entity:
+ * 1. Profile Header: Species photograph (with multi-tier fallback), IUCN status badge,
+ *    common name, Latin binomial, description, and taxonomic traits (Class, Species, Diet, Lifespan).
+ * 2. Tab Navigation:
+ *    - "Explore Relationships Graph": Launches interactive SVG GraphViewer showing the animal's
+ *      direct ego-network (connected species, habitats, prey, status, continents).
+ *    - "Attribute Explorer": Tabular inspection of Habitats (LIVES_IN), Food sources (EATS),
+ *      and Continents (FOUND_IN) with one-click traversal links to explore related animals.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
@@ -17,6 +30,7 @@ import {
 import { api } from '../services/api';
 import GraphViewer from '../components/GraphViewer';
 
+// IUCN Conservation Status badge styling classes
 const STATUS_BADGES = {
   'Least Concern': 'bg-emerald-50 text-emerald-800 border-emerald-300',
   'Near Threatened': 'bg-lime-50 text-lime-800 border-lime-300',
@@ -25,6 +39,7 @@ const STATUS_BADGES = {
   'Critically Endangered': 'bg-rose-50 text-rose-800 border-rose-300',
 };
 
+// Verified class fallback photos for redundant image loading
 const CLASS_FALLBACKS = {
   Mammal: "https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80",
   Bird: "https://images.unsplash.com/photo-1611689342806-0863700ce1e4?auto=format&fit=crop&w=800&q=80",
@@ -39,6 +54,7 @@ export default function AnimalDetails() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Component state
   const [animal, setAnimal] = useState(null);
   const [graphData, setGraphData] = useState(null);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'graph' ? 'graph' : 'overview');
@@ -46,6 +62,9 @@ export default function AnimalDetails() {
   const [error, setError] = useState(null);
   const [imgErrorStep, setImgErrorStep] = useState(0);
 
+  /**
+   * Fetches animal entity details and subgraph topology concurrently on mount or ID change.
+   */
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -66,6 +85,7 @@ export default function AnimalDetails() {
       });
   }, [animal_id]);
 
+  // Loading State Display
   if (loading) {
     return (
       <div className="py-20 text-center">
@@ -75,6 +95,7 @@ export default function AnimalDetails() {
     );
   }
 
+  // Error / Not Found State Display
   if (error || !animal) {
     return (
       <div className="py-12 max-w-lg mx-auto text-center bg-white rounded-2xl border border-slate-200 p-8">
@@ -91,6 +112,10 @@ export default function AnimalDetails() {
     );
   }
 
+  /**
+   * Multi-tier redundant image selection:
+   * Gracefully falls back from entity-specific URL to class-level CDN photo.
+   */
   const getImageSource = () => {
     if (imgErrorStep === 0 && animal.imageUrl) {
       return animal.imageUrl;
@@ -101,6 +126,9 @@ export default function AnimalDetails() {
     return CLASS_FALLBACKS[animal.className] || CLASS_FALLBACKS.Mammal;
   };
 
+  /**
+   * Image load error handler: steps to the next redundant fallback level.
+   */
   const handleImageError = () => {
     if (imgErrorStep < 2) {
       setImgErrorStep((prev) => prev + 1);
@@ -109,7 +137,7 @@ export default function AnimalDetails() {
 
   return (
     <div className="space-y-6 py-4">
-      {/* Back button */}
+      {/* Back to Explore Navigation Link */}
       <div>
         <Link
           to="/explore"
@@ -123,7 +151,7 @@ export default function AnimalDetails() {
       {/* Main Profile Header Banner */}
       <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
-          {/* Photo */}
+          {/* High-Resolution Animal Photo */}
           <div className="md:col-span-5 h-64 md:h-auto relative bg-slate-900">
             <img
               src={getImageSource()}
@@ -132,6 +160,7 @@ export default function AnimalDetails() {
               onError={handleImageError}
               referrerPolicy="no-referrer"
             />
+            {/* Top-Left Conservation Status Badge */}
             <div className="absolute top-4 left-4">
               <span className={`px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md shadow-xs ${STATUS_BADGES[animal.conservationStatus] || 'bg-slate-100 text-slate-700'}`}>
                 {animal.conservationStatus}
@@ -139,9 +168,10 @@ export default function AnimalDetails() {
             </div>
           </div>
 
-          {/* Details */}
+          {/* Biological Details & Taxonomy */}
           <div className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-between">
             <div>
+              {/* Name & Latin Binomial */}
               <div className="flex flex-wrap items-baseline gap-2 mb-1">
                 <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                   {animal.name}
@@ -151,15 +181,17 @@ export default function AnimalDetails() {
                 </span>
               </div>
 
+              {/* Entity Identifier */}
               <p className="text-xs text-slate-400 font-mono mb-4">
                 Entity ID: {animal.id}
               </p>
 
+              {/* Biological Description */}
               <p className="text-sm text-slate-600 leading-relaxed mb-6">
                 {animal.description}
               </p>
 
-              {/* Taxonomy & Traits Pills */}
+              {/* Taxonomy & Lifespan Metadata Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
                 <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                   <span className="text-2xs font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
@@ -192,11 +224,11 @@ export default function AnimalDetails() {
               </div>
             </div>
 
-            {/* Action Bar */}
+            {/* View Mode Tab Buttons */}
             <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-2">
               <button
                 onClick={() => setActiveTab('graph')}
-                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'graph'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
@@ -207,7 +239,7 @@ export default function AnimalDetails() {
               </button>
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -221,7 +253,7 @@ export default function AnimalDetails() {
         </div>
       </div>
 
-      {/* Interactive Tabs */}
+      {/* Tab 1: Interactive Knowledge Graph Neighborhood */}
       {activeTab === 'graph' ? (
         <section className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -248,8 +280,9 @@ export default function AnimalDetails() {
           />
         </section>
       ) : (
+        /* Tab 2: Attribute Explorer */
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Habitats Card */}
+          {/* Habitats (LIVES_IN) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
             <div className="flex items-center space-x-2 pb-3 mb-3 border-b border-slate-100">
               <TreePine className="w-4 h-4 text-emerald-600" />
@@ -274,7 +307,7 @@ export default function AnimalDetails() {
             </div>
           </div>
 
-          {/* Food Sources Card */}
+          {/* Food Sources (EATS) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
             <div className="flex items-center space-x-2 pb-3 mb-3 border-b border-slate-100">
               <Utensils className="w-4 h-4 text-amber-600" />
@@ -292,7 +325,7 @@ export default function AnimalDetails() {
             </div>
           </div>
 
-          {/* Continents Card */}
+          {/* Geographical Continents (FOUND_IN) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
             <div className="flex items-center space-x-2 pb-3 mb-3 border-b border-slate-100">
               <Globe className="w-4 h-4 text-purple-600" />

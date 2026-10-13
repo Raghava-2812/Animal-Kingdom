@@ -1,3 +1,11 @@
+"""
+Natural Language Cypher Query Interface API Router.
+
+Enables plain English questions against the Knowledge Graph:
+- GET /api/queries/examples: Curated sample queries highlighting academic graph queries.
+- POST /api/queries/ask: Translates user question into Cypher, executes it, and returns results.
+"""
+
 from typing import List
 from fastapi import APIRouter
 from app.models.query import NaturalLanguageQueryRequest, NaturalLanguageQueryResponse
@@ -5,6 +13,7 @@ from app.services.query_service import QueryService
 
 router = APIRouter(prefix="/api/queries", tags=["Knowledge Graph Queries"])
 
+# Curated academic example questions demonstrating diverse graph traversal patterns
 EXAMPLE_QUESTIONS = [
     "Show endangered animals that live in forests",
     "Show carnivorous mammals",
@@ -18,12 +27,24 @@ EXAMPLE_QUESTIONS = [
     "Show animals found in Asia and having an endangered status"
 ]
 
+
 @router.get("/examples", response_model=List[str])
 def get_example_questions():
-    """Retrieve predefined natural language questions supported by the Knowledge Graph."""
+    """
+    Retrieve predefined natural language questions supported by the Knowledge Graph.
+
+    Used by the frontend UI to display quick-prompt pills that users can click
+    to immediately explore graph query capabilities.
+    """
     return EXAMPLE_QUESTIONS
+
 
 @router.post("/ask", response_model=NaturalLanguageQueryResponse)
 def ask_knowledge_graph(request: NaturalLanguageQueryRequest):
-    """Process natural language question into safe Cypher and execute."""
+    """
+    Process natural language question into safe Cypher and execute.
+
+    Extracts graph entity keywords, compiles parameterized Cypher MATCH statements,
+    executes against Neo4j, and returns matched entities with traversal explanations.
+    """
     return QueryService.execute_natural_language_query(request.question)

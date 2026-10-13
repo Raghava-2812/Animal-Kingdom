@@ -1,3 +1,15 @@
+/**
+ * Explore Fauna Page View Component.
+ *
+ * Provides full-text and faceted search exploration over the Knowledge Graph:
+ * - URL Synchronization: Keeps filter options and search query in sync with URL search params
+ *   (e.g., `/explore?class=Mammal&habitat=Forest&q=tiger`) allowing bookmarkable links.
+ * - Text Search: Uses SearchBar component for fuzzy / substring matching.
+ * - Faceted Filtering: Uses FilterPanel for Class, Habitat, Diet, IUCN Status, and Continent.
+ * - Dynamic Result Cards Grid: Displays responsive grid of AnimalCard components with total count.
+ * - Status Handling: Renders dedicated Loading, Error (with retry), and Empty search states.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Filter, AlertCircle, RefreshCw } from 'lucide-react';
@@ -10,7 +22,10 @@ export default function Explore() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Search input state
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+
+  // Multi-facet filter criteria state
   const [filters, setFilters] = useState({
     class: searchParams.get('class') || '',
     habitat: searchParams.get('habitat') || '',
@@ -19,11 +34,14 @@ export default function Explore() {
     continent: searchParams.get('continent') || '',
   });
 
+  // Query result and status states
   const [animals, setAnimals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sync URL search params with state
+  /**
+   * Synchronizes browser URL search parameters into React state on navigation.
+   */
   useEffect(() => {
     const classParam = searchParams.get('class') || '';
     const habitatParam = searchParams.get('habitat') || '';
@@ -42,12 +60,15 @@ export default function Explore() {
     setSearchQuery(qParam);
   }, [searchParams]);
 
-  // Fetch animals whenever query or filters change
+  /**
+   * Fetches matching animals whenever the search query or active filters change.
+   */
   useEffect(() => {
     setLoading(true);
     setError(null);
 
     if (searchQuery.trim()) {
+      // Execute free-text substring search across animal names
       api.search(searchQuery)
         .then((data) => {
           setAnimals(data);
@@ -58,6 +79,7 @@ export default function Explore() {
           setLoading(false);
         });
     } else {
+      // Execute multi-facet category filter
       api.getAnimals(filters)
         .then((data) => {
           setAnimals(data);
@@ -70,10 +92,12 @@ export default function Explore() {
     }
   }, [searchQuery, filters]);
 
+  /**
+   * Updates an individual filter dimension and reflects it in browser URL parameters.
+   */
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
-    // Update URL params
     const params = new URLSearchParams();
     Object.entries(newFilters).forEach(([k, v]) => {
       if (v) params.set(k, v);
@@ -82,6 +106,9 @@ export default function Explore() {
     setSearchParams(params);
   };
 
+  /**
+   * Resets all search parameters and filters to their blank initial state.
+   */
   const handleResetFilters = () => {
     const emptyFilters = { class: '', habitat: '', diet: '', status: '', continent: '' };
     setFilters(emptyFilters);
@@ -89,6 +116,9 @@ export default function Explore() {
     setSearchParams(new URLSearchParams());
   };
 
+  /**
+   * Handles explicit text search submission.
+   */
   const handleSearchSubmit = (val) => {
     setSearchQuery(val);
     const params = new URLSearchParams();
@@ -98,7 +128,7 @@ export default function Explore() {
 
   return (
     <div className="space-y-6 py-4">
-      {/* Page Header */}
+      {/* Page Title & Overview */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           Explore Animals
@@ -108,7 +138,7 @@ export default function Explore() {
         </p>
       </div>
 
-      {/* Search Bar */}
+      {/* Full-Text Search Input */}
       <SearchBar
         value={searchQuery}
         onChange={(val) => {
@@ -122,21 +152,21 @@ export default function Explore() {
         onSearch={handleSearchSubmit}
       />
 
-      {/* Multi-Facet Filter Panel */}
+      {/* Multi-Dimension Faceted Filter Panel */}
       <FilterPanel
         filters={filters}
         onFilterChange={handleFilterChange}
         onReset={handleResetFilters}
       />
 
-      {/* Active Results Summary */}
+      {/* Results Header Count */}
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
           Showing {animals.length} {animals.length === 1 ? 'Animal' : 'Animals'}
         </p>
       </div>
 
-      {/* Loading State */}
+      {/* Loading Spinner State */}
       {loading && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-16 text-center shadow-xs">
           <div className="w-9 h-9 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -144,7 +174,7 @@ export default function Explore() {
         </div>
       )}
 
-      {/* Error State */}
+      {/* Error Notice with Retry Button */}
       {error && !loading && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center text-rose-800">
           <AlertCircle className="w-8 h-8 mx-auto mb-2 text-rose-500" />
@@ -160,7 +190,7 @@ export default function Explore() {
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty Filter State */}
       {!loading && !error && animals.length === 0 && (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-xs">
           <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
@@ -170,14 +200,14 @@ export default function Explore() {
           </p>
           <button
             onClick={handleResetFilters}
-            className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
+            className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
           >
             Reset Filters
           </button>
         </div>
       )}
 
-      {/* Animal Grid */}
+      {/* Animals Card Grid */}
       {!loading && !error && animals.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {animals.map((animal) => (

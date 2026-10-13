@@ -1,3 +1,15 @@
+/**
+ * Natural Language Knowledge Graph Query Page View Component.
+ *
+ * Provides an academic natural-language search workbench:
+ * - Pre-loads curated example queries from `/api/queries/examples` (e.g., "Show endangered animals that live in forests").
+ * - Auto-executes an initial sample query on mount so users immediately see results and Cypher statements.
+ * - Submits user input to `/api/queries/ask` via the `QueryBox` component.
+ * - Displays the breakdown via `QueryResult`: detected filters, generated Cypher code block,
+ *   academic explanation, and matching animal cards.
+ * - Educational footer explaining the three-step pipeline: Entity Extraction -> Cypher Generation -> Graph Retrieval.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, Sparkles, Terminal, BookOpen, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
@@ -5,14 +17,25 @@ import QueryBox from '../components/QueryBox';
 import QueryResult from '../components/QueryResult';
 
 export default function AskKnowledgeGraph() {
+  // Controlled input query text (initialized with a representative query)
   const [question, setQuestion] = useState('Show endangered animals that live in forests');
+
+  // Predefined example queries loaded from backend
   const [exampleQuestions, setExampleQuestions] = useState([]);
+
+  // Query response payload from the Cypher translation engine
   const [queryResponse, setQueryResponse] = useState(null);
+
+  // Status flags
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  /**
+   * Initializes page on mount:
+   * 1. Fetches predefined academic query examples.
+   * 2. Executes the default query immediately for instant visual feedback.
+   */
   useEffect(() => {
-    // Fetch example questions from backend
     api.getExampleQuestions()
       .then((data) => {
         setExampleQuestions(data);
@@ -33,10 +56,14 @@ export default function AskKnowledgeGraph() {
         ]);
       });
 
-    // Execute default query on mount for immediate presentation
+    // Auto-run default query on initial page load
     handleExecuteQuery('Show endangered animals that live in forests');
   }, []);
 
+  /**
+   * Submits a question string to the backend Natural Language Cypher engine.
+   * @param {string} queryText - The plain English question to translate and execute.
+   */
   const handleExecuteQuery = async (queryText) => {
     if (!queryText.trim()) return;
     setLoading(true);
@@ -51,6 +78,10 @@ export default function AskKnowledgeGraph() {
     }
   };
 
+  /**
+   * Populates the query box and immediately executes when a sample chip is clicked.
+   * @param {string} exampleText - The clicked sample question.
+   */
   const handleSelectExample = (exampleText) => {
     setQuestion(exampleText);
     handleExecuteQuery(exampleText);
@@ -58,7 +89,7 @@ export default function AskKnowledgeGraph() {
 
   return (
     <div className="space-y-8 py-4 max-w-7xl mx-auto">
-      {/* Page Title */}
+      {/* 1. Page Header */}
       <div>
         <div className="flex items-center space-x-2 text-emerald-600 mb-1">
           <HelpCircle className="w-5 h-5" />
@@ -72,7 +103,7 @@ export default function AskKnowledgeGraph() {
         </p>
       </div>
 
-      {/* Query Box with Predefined Chips */}
+      {/* 2. Query Box with Clickable Sample Query Pills */}
       <QueryBox
         question={question}
         onQuestionChange={setQuestion}
@@ -82,7 +113,7 @@ export default function AskKnowledgeGraph() {
         onSelectExample={handleSelectExample}
       />
 
-      {/* Error Alert */}
+      {/* Error Alert Banner */}
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center space-x-3 text-rose-800">
           <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
@@ -90,13 +121,13 @@ export default function AskKnowledgeGraph() {
         </div>
       )}
 
-      {/* Query Results and Cypher Inspection */}
+      {/* 3. Query Results, Generated Cypher Code Block, and Entity Cards */}
       <QueryResult
         response={queryResponse}
         loading={loading}
       />
 
-      {/* Academic Query Mechanism Explanation */}
+      {/* 4. Educational Pipeline Architecture Explanation */}
       <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 text-slate-600 space-y-3">
         <div className="flex items-center space-x-2">
           <BookOpen className="w-4 h-4 text-emerald-600" />

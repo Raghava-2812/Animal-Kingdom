@@ -1,3 +1,16 @@
+/**
+ * Root Application Component.
+ *
+ * Sets up client-side routing via React Router (BrowserRouter):
+ * - `/` -> Home: Overview statistics, featured animals, and interactive ecosystem graph.
+ * - `/explore` -> Explore: Multi-facet search and filtering across taxonomy, biomes, and diets.
+ * - `/animals/:animal_id` -> AnimalDetails: Individual entity profile and ego-network.
+ * - `/ask` -> AskKnowledgeGraph: Natural language translation to Cypher queries.
+ * - `*` -> Wildcard fallback redirecting back to `/`.
+ *
+ * Provides the global layout structure with Navbar, content container, and Footer.
+ */
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -9,19 +22,24 @@ import AskKnowledgeGraph from './pages/AskKnowledgeGraph';
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Global Application Layout Wrapper */}
       <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-emerald-100 selection:text-emerald-900">
+        {/* Top Navigation Bar with live connection badge */}
         <Navbar />
 
+        {/* Main Content Area bounded to max-w-7xl */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-12">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/animals/:animal_id" element={<AnimalDetails />} />
             <Route path="/ask" element={<AskKnowledgeGraph />} />
+            {/* Catch-all redirect back to Home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
 
+        {/* Application Footer */}
         <footer className="bg-white border-t border-slate-200 py-6 mt-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
             <div className="flex items-center space-x-2">

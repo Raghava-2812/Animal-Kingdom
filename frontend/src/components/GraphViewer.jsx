@@ -1,7 +1,27 @@
+/**
+ * Interactive Knowledge Graph Network Visualization Component.
+ *
+ * Renders graph entities (vertices) and relationships (directed edges) via SVG:
+ * - Orbital Layout Algorithm: Positions the focal Animal at the center, placing
+ *   taxonomy/status in an inner orbit (radius 150px) and biomes/foods in an outer orbit (radius 260px).
+ * - Interactive Canvas: Full pan (drag canvas background) and zoom (zoom buttons / wheel).
+ * - Directed Edges: SVG path markers (arrowheads) and relationship badges displaying Cypher types
+ *   (e.g., LIVES_IN, BELONGS_TO_SPECIES, EATS, HAS_STATUS).
+ * - Interactive Node Inspector: Clicking any vertex opens a detail card with entity metadata,
+ *   ID, scientific name, and navigation buttons to explore resident fauna.
+ *
+ * Props:
+ * @param {Object} props.graphData - Object with `{ nodes: Array, relationships: Array }`.
+ * @param {Function} [props.onNodeClick] - Optional callback fired when a node is clicked.
+ * @param {string} [props.height="560px"] - CSS height for the SVG container.
+ * @param {string} [props.centerNodeId] - Entity ID to prioritize as the focal center vertex.
+ */
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Info, ExternalLink, X, Move } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// Node category color palette for SVG fills, strokes, and badges
 const NODE_COLORS = {
   Animal: { fill: '#059669', stroke: '#047857', text: '#ffffff', tag: 'bg-emerald-600 text-white' },
   Species: { fill: '#4f46e5', stroke: '#4338ca', text: '#ffffff', tag: 'bg-indigo-600 text-white' },
@@ -30,14 +50,19 @@ export default function GraphViewer({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState(null);
 
-  // Reset viewport
+  /**
+   * Resets pan and zoom back to default coordinate center.
+   */
   const handleReset = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setSelectedNode(null);
   };
 
-  // Node layout calculation
+  /**
+   * Orbital layout computation:
+   * Memoizes geometric positions (x, y) for nodes and edge endpoints.
+   */
   const layout = useMemo(() => {
     if (!graphData || !graphData.nodes || graphData.nodes.length === 0) {
       return { nodesWithPos: [], relationshipsWithCoords: [] };
@@ -51,7 +76,7 @@ export default function GraphViewer({
     const nodes = [...graphData.nodes];
     const rels = [...graphData.relationships];
 
-    // Find central node (either centerNodeId or first Animal node)
+    // Identify focal node (either requested centerNodeId or first Animal node)
     let center = nodes.find(n => n.id === centerNodeId);
     if (!center) {
       center = nodes.find(n => n.type === 'Animal') || nodes[0];
@@ -60,7 +85,7 @@ export default function GraphViewer({
     const otherNodes = nodes.filter(n => n.id !== center.id);
     const nodesWithPos = [];
 
-    // Center node position
+    // 1. Position focal node at exact canvas center
     nodesWithPos.push({
       ...center,
       x: centerX,
@@ -69,14 +94,14 @@ export default function GraphViewer({
       isCenter: true
     });
 
-    // Arrange other nodes in orbital rings based on node type
+    // Partition remaining vertices into inner and outer orbital layers
     const innerRingTypes = ['Species', 'Diet', 'ConservationStatus'];
     const outerRingTypes = ['Class', 'Habitat', 'Food', 'Continent'];
 
     const innerNodes = otherNodes.filter(n => innerRingTypes.includes(n.type));
     const outerNodes = otherNodes.filter(n => !innerRingTypes.includes(n.type));
 
-    // Position inner ring
+    // 2. Position inner orbital ring (radius: 150px)
     const innerRadius = 150;
     innerNodes.forEach((node, i) => {
       const angle = (i / Math.max(innerNodes.length, 1)) * 2 * Math.PI - Math.PI / 2;
@@ -89,7 +114,7 @@ export default function GraphViewer({
       });
     });
 
-    // Position outer ring
+    // 3. Position outer orbital ring (radius: 260px)
     const outerRadius = 260;
     outerNodes.forEach((node, i) => {
       const angle = (i / Math.max(outerNodes.length, 1)) * 2 * Math.PI - Math.PI / 4;
@@ -102,11 +127,11 @@ export default function GraphViewer({
       });
     });
 
-    // Build coordinate map
+    // Create fast lookup map for connecting relationship edges
     const nodeMap = new Map();
     nodesWithPos.forEach(n => nodeMap.set(n.id, n));
 
-    // Connect relationships
+    // 4. Attach spatial coordinates to relationship edges
     const relationshipsWithCoords = rels.map(r => {
       const source = nodeMap.get(r.source);
       const target = nodeMap.get(r.target);
@@ -120,7 +145,9 @@ export default function GraphViewer({
     return { nodesWithPos, relationshipsWithCoords };
   }, [graphData, centerNodeId]);
 
-  // Mouse drag pan handler
+  // ------------------------------------------------------------------------
+  // Mouse Drag / Panning Event Handlers
+  // ------------------------------------------------------------------------
   const handleMouseDown = (e) => {
     if (e.target.tagName === 'svg' || e.target.id === 'canvas-bg') {
       setIsDragging(true);
@@ -156,7 +183,7 @@ export default function GraphViewer({
 
   return (
     <div className="relative bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-lg select-none">
-      {/* Top Toolbar */}
+      {/* Top Left Navigation & Zoom Toolbar */}
       <div className="absolute top-3 left-3 z-10 flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-800 text-white">
         <span className="text-2xs font-bold uppercase tracking-wider text-emerald-400 px-2">
           Knowledge Graph
@@ -185,7 +212,7 @@ export default function GraphViewer({
         </button>
       </div>
 
-      {/* Legend */}
+      {/* Top Right Categorical Color Legend */}
       <div className="absolute top-3 right-3 z-10 hidden sm:flex flex-wrap items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-2 rounded-xl border border-slate-800 max-w-sm">
         {Object.entries(NODE_COLORS).filter(([k]) => k !== 'default').map(([type, colors]) => (
           <span
@@ -209,7 +236,7 @@ export default function GraphViewer({
         onMouseLeave={handleMouseUp}
       >
         <defs>
-          {/* Arrowhead marker */}
+          {/* Arrowhead marker for directed Cypher edges */}
           <marker
             id="arrowhead"
             markerWidth="10"
@@ -222,11 +249,12 @@ export default function GraphViewer({
           </marker>
         </defs>
 
+        {/* Canvas background capturing drag events */}
         <rect id="canvas-bg" width="100%" height="100%" fill="#090d16" />
 
-        {/* Pan and Zoom Group */}
+        {/* Pan and Zoom Group Transform */}
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-          {/* Relationships Links */}
+          {/* Directed Relationship Edges */}
           {layout.relationshipsWithCoords.map((rel) => {
             const sx = rel.sourceNode.x;
             const sy = rel.sourceNode.y;
@@ -237,7 +265,7 @@ export default function GraphViewer({
 
             return (
               <g key={rel.id} className="transition-opacity">
-                {/* Connecting Line */}
+                {/* Connecting Line with Directed Arrowhead */}
                 <line
                   x1={sx}
                   y1={sy}
@@ -248,7 +276,7 @@ export default function GraphViewer({
                   strokeDasharray="none"
                   markerEnd="url(#arrowhead)"
                 />
-                {/* Labeled Relationship Badge */}
+                {/* Edge Type Label Badge (e.g. LIVES_IN, EATS) */}
                 <g transform={`translate(${midX}, ${midY})`}>
                   <rect
                     x="-42"
@@ -275,7 +303,7 @@ export default function GraphViewer({
             );
           })}
 
-          {/* Node Circles */}
+          {/* Node Circles (Vertices) */}
           {layout.nodesWithPos.map((node) => {
             const colors = NODE_COLORS[node.type] || NODE_COLORS.default;
             const isSelected = selectedNode?.id === node.id;
@@ -290,7 +318,7 @@ export default function GraphViewer({
                 }}
                 className="cursor-pointer group"
               >
-                {/* Outer Glow / Halo if selected */}
+                {/* Selection Halo Indicator */}
                 {isSelected && (
                   <circle
                     r={node.radius + 8}
@@ -302,7 +330,7 @@ export default function GraphViewer({
                   />
                 )}
 
-                {/* Node Base Circle */}
+                {/* Primary Circle */}
                 <circle
                   r={node.radius}
                   fill={colors.fill}
@@ -311,7 +339,7 @@ export default function GraphViewer({
                   className="transition-transform group-hover:scale-110 shadow-md"
                 />
 
-                {/* Inner label text */}
+                {/* Primary Entity Name Label */}
                 <text
                   textAnchor="middle"
                   dy={node.isCenter ? "4" : "3"}
@@ -323,7 +351,7 @@ export default function GraphViewer({
                   {node.label.length > 13 ? `${node.label.slice(0, 11)}..` : node.label}
                 </text>
 
-                {/* Subtitle / Type under the node */}
+                {/* Secondary Type Subtitle (e.g. 'Habitat', 'Species') */}
                 <text
                   textAnchor="middle"
                   dy={node.radius + 12}
@@ -340,7 +368,7 @@ export default function GraphViewer({
         </g>
       </svg>
 
-      {/* Node Detail Side Sheet / Inspector */}
+      {/* Floating Node Inspector / Detail Card */}
       {selectedNode && (
         <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-80 bg-slate-900/95 backdrop-blur-md rounded-xl border border-slate-700 p-4 shadow-2xl z-20 text-white">
           <div className="flex items-start justify-between pb-2 mb-2 border-b border-slate-800">
@@ -368,7 +396,7 @@ export default function GraphViewer({
             )}
           </div>
 
-          {/* Connected Graph Action */}
+          {/* Connected Entity Traversal Actions */}
           {selectedNode.type === 'Animal' && selectedNode.id !== centerNodeId && (
             <button
               onClick={() => navigate(`/animals/${selectedNode.id}`)}

@@ -1,3 +1,20 @@
+/**
+ * Natural Language Query Input Box Component.
+ *
+ * Provides the interactive search interface for the Natural Language to Cypher engine:
+ * - Text input supporting free-form English questions (e.g. "Show carnivorous mammals").
+ * - Submit button with loading spinner during backend Cypher compilation and graph execution.
+ * - Clickable pill buttons for predefined academic queries that auto-populate the input.
+ *
+ * Props:
+ * @param {string} props.question - Current query string value in the input field.
+ * @param {Function} props.onQuestionChange - Callback fired as the user types: (value) => void.
+ * @param {Function} props.onSubmit - Callback fired on form submit: (query) => void.
+ * @param {boolean} props.loading - Flag indicating whether an active request is in flight.
+ * @param {Array<string>} [props.exampleQuestions] - Array of sample query strings.
+ * @param {Function} props.onSelectExample - Callback fired when a sample chip is clicked.
+ */
+
 import React from 'react';
 import { Sparkles, Send, HelpCircle } from 'lucide-react';
 
@@ -11,6 +28,7 @@ export default function QueryBox({
 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+      {/* Header with Title and Engine Summary */}
       <div className="flex items-center space-x-2 mb-3">
         <Sparkles className="w-5 h-5 text-emerald-600" />
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">
@@ -21,7 +39,7 @@ export default function QueryBox({
         Query the Neo4j Knowledge Graph using plain English. The backend extracts graph entities (habitats, diets, taxonomy, conservation statuses) and translates them into an optimized Cypher query.
       </p>
 
-      {/* Input & Submit */}
+      {/* Query Form with Embedded Submit Button */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
